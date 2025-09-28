@@ -272,8 +272,7 @@ export async function GET(request: NextRequest) {
       return acc
     }, {} as Record<string, number>) || {}
 
-    // Calcul de la note moyenne pour chaque membre du personnel
-    const staffWithRatings = staff?.map((member: StaffQueryResult) => {
+    // Calcul de la note moyenne pour chaque membre du personnel     
     const staffWithRatings = staff?.map((member: StaffQueryResult) => {
       const ratings = member.ratings_received || []
       const avgRating = ratings.length > 0
@@ -645,4 +644,4 @@ export async function DELETE(request: NextRequest) {
     )
   }
 }
-}
+
