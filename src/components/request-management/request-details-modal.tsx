@@ -232,6 +232,8 @@ export function RequestDetailsModal({
                 </div>
                 <div className="flex-1">
                   <Textarea
+                    id="newComment"
+                    name="newComment"
                     placeholder="Ajouter un commentaire..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}

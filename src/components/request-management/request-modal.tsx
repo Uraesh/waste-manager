@@ -88,6 +88,7 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
               <Label htmlFor="title">Titre de la demande</Label>
               <Input
                 id="title"
+                name="title"
                 value={formData.title}
                 onChange={(e) => handleChange("title", e.target.value)}
                 className="bg-white/50 dark:bg-gray-800/50"
@@ -99,6 +100,7 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
               <Label htmlFor="client">Client</Label>
               <Input
                 id="client"
+                name="client"
                 value={formData.client}
                 onChange={(e) => handleChange("client", e.target.value)}
                 className="bg-white/50 dark:bg-gray-800/50"
@@ -112,6 +114,7 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
             <Label htmlFor="location">Localisation</Label>
             <Input
               id="location"
+              name="location"
               value={formData.location}
               onChange={(e) => handleChange("location", e.target.value)}
               className="bg-white/50 dark:bg-gray-800/50"
@@ -123,7 +126,7 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
-              <Select value={formData.type} onValueChange={(value: string) => handleChange("type", value)}>
+              <Select name="type" value={formData.type} onValueChange={(value: string) => handleChange("type", value)}>
                 <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
                   <SelectValue />
                 </SelectTrigger>
@@ -137,7 +140,11 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
             </div>
             <div className="space-y-2">
               <Label htmlFor="priority">Priorité</Label>
-              <Select value={formData.priority} onValueChange={(value: string) => handleChange("priority", value)}>
+              <Select
+                name="priority"
+                value={formData.priority}
+                onValueChange={(value: string) => handleChange("priority", value)}
+              >
                 <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
                   <SelectValue />
                 </SelectTrigger>
@@ -152,7 +159,11 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
             {currentUserRole === "admin" && (
               <div className="space-y-2">
                 <Label htmlFor="status">Statut</Label>
-                <Select value={formData.status} onValueChange={(value: string) => handleChange("status", value)}>
+                <Select
+                  name="status"
+                  value={formData.status}
+                  onValueChange={(value: string) => handleChange("status", value)}
+                >
                   <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
                     <SelectValue />
                   </SelectTrigger>
@@ -171,6 +182,7 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
             <Label htmlFor="description">Description détaillée</Label>
             <Textarea
               id="description"
+              name="description"
               value={formData.description}
               onChange={(e) => handleChange("description", e.target.value)}
               className="bg-white/50 dark:bg-gray-800/50 min-h-[100px]"
@@ -184,6 +196,7 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
               <Label htmlFor="contactPhone">Téléphone de contact</Label>
               <Input
                 id="contactPhone"
+                name="contactPhone"
                 value={formData.contactPhone}
                 onChange={(e) => handleChange("contactPhone", e.target.value)}
                 className="bg-white/50 dark:bg-gray-800/50"
@@ -193,6 +206,7 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
             <div className="space-y-2">
               <Label htmlFor="estimatedDuration">Durée estimée</Label>
               <Select
+                name="estimatedDuration"
                 value={formData.estimatedDuration}
                 onValueChange={(value: string) => handleChange("estimatedDuration", value)}
               >
@@ -214,7 +228,11 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
           {currentUserRole === "admin" && (
             <div className="space-y-2">
               <Label htmlFor="assignedTo">Assigner à</Label>
-              <Select value={formData.assignedTo} onValueChange={(value: string) => handleChange("assignedTo", value)}>
+              <Select
+                name="assignedTo"
+                value={formData.assignedTo}
+                onValueChange={(value: string) => handleChange("assignedTo", value)}
+              >
                 <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
                   <SelectValue placeholder="Sélectionner un membre du personnel" />
                 </SelectTrigger>
@@ -234,6 +252,7 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
             <Label htmlFor="specialInstructions">Instructions spéciales</Label>
             <Textarea
               id="specialInstructions"
+              name="specialInstructions"
               value={formData.specialInstructions}
               onChange={(e) => handleChange("specialInstructions", e.target.value)}
               className="bg-white/50 dark:bg-gray-800/50"
