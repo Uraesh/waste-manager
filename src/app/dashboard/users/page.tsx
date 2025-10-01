@@ -44,13 +44,48 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const router = useRouter()
 
-  useEffect(() => {
-    // Check authentication and admin role
-    const isAuthenticated = localStorage.getItem("isAuthenticated")
-    const userRole = localStorage.getItem("userRole")
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-    if (!isAuthenticated || userRole !== "admin") {
-      router.push("/dashboard")
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await fetch("/api/users")
+        const data = await response.json()
+
+        if (!response.ok) {
+          // This will catch the 403 error and display our custom message
+          throw new Error(data.message || "Une erreur est survenue lors de la récupération des utilisateurs.")
+        }
+
+        // The API returns users with 'full_name' and 'created_at'. We map them to our component's 'User' interface.
+        const formattedUsers = data.map((user: any) => ({
+          id: user.id,
+          name: user.full_name,
+          email: user.email,
+          role: user.role,
+          status: "active", // Default status, as this is not in our 'users' table
+          joinDate: user.created_at,
+          lastActive: "N/A", // This info is not available from the API
+        }))
+        setUsers(formattedUsers)
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    // Client-side check to see if the user is an admin before attempting to fetch data.
+    const userRole = localStorage.getItem("userRole")
+    if (userRole !== "admin") {
+      // Immediately set an error message without even calling the API.
+      // The API has its own server-side check, but this provides a faster response for non-admins.
+      setError("Cette porte ne s’ouvre qu’aux âmes autorisées…")
+      setIsLoading(false)
       return
     }
 
@@ -58,56 +93,10 @@ export default function UsersPage() {
       id: localStorage.getItem("userId") ?? "local",
       email: localStorage.getItem("userEmail") ?? "",
       full_name: localStorage.getItem("userName") ?? "",
-      role: (userRole as "admin" | "client" | "staff"),
+      role: userRole as "admin" | "client" | "staff",
     })
 
-    // Mock users data
-    setUsers([
-      {
-        id: "1",
-        name: "Marie Dubois",
-        email: "marie.dubois@email.com",
-        role: "client",
-        status: "active",
-        joinDate: "2024-01-15",
-        lastActive: "Il y a 2h",
-        phone: "+33 1 23 45 67 89",
-        address: "15 Rue de la Paix, Paris",
-      },
-      {
-        id: "2",
-        name: "Jean Dupont",
-        email: "jean.dupont@email.com",
-        role: "staff",
-        status: "active",
-        joinDate: "2024-02-01",
-        lastActive: "Il y a 30min",
-        phone: "+33 1 98 76 54 32",
-        address: "Zone industrielle Nord",
-      },
-      {
-        id: "3",
-        name: "Pierre Martin",
-        email: "pierre.martin@email.com",
-        role: "staff",
-        status: "inactive",
-        joinDate: "2024-01-20",
-        lastActive: "Il y a 2 jours",
-        phone: "+33 1 11 22 33 44",
-        address: "Centre commercial",
-      },
-      {
-        id: "4",
-        name: "Sophie Laurent",
-        email: "sophie.laurent@email.com",
-        role: "client",
-        status: "active",
-        joinDate: "2024-03-01",
-        lastActive: "Il y a 1h",
-        phone: "+33 1 55 66 77 88",
-        address: "Quartier des affaires",
-      },
-    ])
+    fetchUsers()
   }, [router])
 
   const getRoleColor = (role: string) => {
@@ -153,15 +142,23 @@ export default function UsersPage() {
     setIsDeleteModalOpen(true)
   }
 
-  const handleSaveUser = (userData: Partial<User>) => {
+  const handleSaveUser = (savedUser: Partial<User>) => {
+    // This function is called after a successful API operation in the modal.
+    // It updates the local state to reflect the change immediately.
     if (modalMode === "create") {
-      setUsers((prev) => [...prev, userData as User])
+      // Add the new user to the top of the list
+      setUsers((prev) => [savedUser as User, ...prev])
     } else {
-      setUsers((prev) => prev.map((user) => (user.id === userData.id ? { ...user, ...userData } : user)))
+      // Find the user in the list and update their details
+      setUsers((prev) =>
+        prev.map((user) => (user.id === savedUser.id ? { ...user, ...savedUser } : user)),
+      )
     }
   }
 
   const handleConfirmDelete = (userId: string) => {
+    // This function is called after a successful delete operation in the modal.
+    // It removes the user from the local state.
     setUsers((prev) => prev.filter((user) => user.id !== userId))
   }
 
@@ -202,10 +199,26 @@ export default function UsersPage() {
     return matchesSearch && matchesRole && matchesStatus
   })
 
-  if (!currentUser) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-rose-50 to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="ml-4 text-gray-600 dark:text-gray-300">Chargement des utilisateurs...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-rose-50 to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Card className="p-8 text-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-red-200 dark:border-red-800 shadow-2xl">
+          <div className="text-5xl mb-4">🚫</div>
+          <h2 className="text-2xl font-bold text-red-700 dark:text-red-400 mb-2">Accès Refusé</h2>
+          <p className="text-red-600 dark:text-red-300 font-medium">{error}</p>
+          <Button onClick={() => router.push("/dashboard")} className="mt-6 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700">
+            Retour au Dashboard
+          </Button>
+        </Card>
       </div>
     )
   }

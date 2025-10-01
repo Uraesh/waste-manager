@@ -34,27 +34,83 @@ export function UserModal({ isOpen, onClose, onSave, user, mode }: UserModalProp
     name: user?.name || "",
     email: user?.email || "",
     role: user?.role || "client",
-    status: user?.status || "active",
-    phone: user?.phone || "",
-    address: user?.address || "",
+    password: "", // Add password field for creation
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Reset form when modal opens or user changes
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        name: user?.name || "",
+        email: user?.email || "",
+        role: user?.role || "client",
+        password: "",
+      })
+      setError(null)
+    }
+  }, [isOpen, user])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
-    // Simulate API call
-    setTimeout(() => {
-      onSave({
-        ...formData,
-        id: user?.id || `user-${Date.now()}`,
-        joinDate: user?.joinDate || new Date().toISOString(),
-        lastActive: user?.lastActive || "Maintenant",
-      })
-      setIsLoading(false)
+    try {
+      let response
+      const body = {
+        full_name: formData.name,
+        email: formData.email,
+        role: formData.role,
+        password: formData.password,
+      }
+
+      if (mode === "create") {
+        if (!body.password) {
+            setError("Le mot de passe est requis pour la création.")
+            setIsLoading(false)
+            return
+        }
+        response = await fetch("/api/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+      } else {
+        if (!user?.id) throw new Error("ID utilisateur manquant pour la modification.")
+        response = await fetch(`/api/users/${user.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ full_name: body.full_name, role: body.role }), // Do not send password on edit
+        })
+      }
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || "Une erreur est survenue.")
+      }
+
+      // The API returns the full user object from Supabase Auth, which is nested.
+      // We format it to match the frontend's `User` interface before passing it to the parent.
+      const formattedUser = {
+        id: result.user.id,
+        name: result.user.user_metadata.full_name,
+        email: result.user.email,
+        role: result.user.user_metadata.role,
+        joinDate: result.user.created_at,
+        status: "active",
+        lastActive: "Maintenant",
+      }
+
+      onSave(formattedUser) // Pass the correctly formatted object
       onClose()
-    }, 1000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleChange = (field: string, value: string) => {
@@ -76,6 +132,7 @@ export function UserModal({ isOpen, onClose, onSave, user, mode }: UserModalProp
               <Label htmlFor="name">Nom complet</Label>
               <Input
                 id="name"
+                name="name"
                 value={formData.name}
                 onChange={(e) => handleChange("name", e.target.value)}
                 className="bg-white/50 dark:bg-gray-800/50"
@@ -86,6 +143,7 @@ export function UserModal({ isOpen, onClose, onSave, user, mode }: UserModalProp
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleChange("email", e.target.value)}
@@ -95,55 +153,36 @@ export function UserModal({ isOpen, onClose, onSave, user, mode }: UserModalProp
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          {mode === "create" && (
             <div className="space-y-2">
-              <Label htmlFor="role">Rôle</Label>
-              <Select value={formData.role} onValueChange={(value) => handleChange("role", value)}>
-                <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="client">Client</SelectItem>
-                  <SelectItem value="staff">Personnel</SelectItem>
-                  <SelectItem value="admin">Administrateur</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="password">Mot de passe</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => handleChange("password", e.target.value)}
+                className="bg-white/50 dark:bg-gray-800/50"
+                required={mode === "create"}
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Statut</Label>
-              <Select value={formData.status} onValueChange={(value) => handleChange("status", value)}>
-                <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Actif</SelectItem>
-                  <SelectItem value="inactive">Inactif</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+          )}
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Téléphone (optionnel)</Label>
-            <Input
-              id="phone"
-              value={formData.phone}
-              onChange={(e) => handleChange("phone", e.target.value)}
-              className="bg-white/50 dark:bg-gray-800/50"
-              placeholder="+33 1 23 45 67 89"
-            />
+            <Label htmlFor="role">Rôle</Label>
+            <Select name="role" value={formData.role} onValueChange={(value) => handleChange("role", value)}>
+              <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="client">Client</SelectItem>
+                <SelectItem value="staff">Personnel</SelectItem>
+                <SelectItem value="admin">Administrateur</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="address">Adresse (optionnel)</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              onChange={(e) => handleChange("address", e.target.value)}
-              className="bg-white/50 dark:bg-gray-800/50"
-              placeholder="123 Rue de la Paix, Paris"
-            />
-          </div>
+          {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
 
           <DialogFooter className="flex gap-2 pt-4">
             <Button
