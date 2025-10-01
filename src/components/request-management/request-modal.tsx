@@ -35,38 +35,81 @@ interface RequestModalProps {
   currentUserRole: string
 }
 
+import { useEffect } from "react"
+
 export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUserRole }: RequestModalProps) {
   const [formData, setFormData] = useState({
-    title: request?.title || "",
-    client: request?.client || "",
-    location: request?.location || "",
-    type: request?.type || "Collecte",
-    status: request?.status || "En attente",
-    priority: request?.priority || "Normale",
-    description: request?.description || "",
-    estimatedDuration: request?.estimatedDuration || "30min",
-    contactPhone: request?.contactPhone || "",
-    specialInstructions: request?.specialInstructions || "",
-    assignedTo: request?.assignedTo || "",
+    title: "",
+    location: "",
+    description: "",
+    service_type: "ramassage",
+    priority: "medium",
+    status: "pending",
+    special_instructions: "",
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const staffMembers = ["Jean Dupont", "Pierre Martin", "Sophie Laurent", "Marc Dubois", "Claire Moreau"]
+  useEffect(() => {
+    if (isOpen) {
+      setError(null)
+      if (mode === "edit" && request) {
+        // Map frontend display values back to DB values for editing
+        const typeToDb: { [key: string]: string } = { "Collecte": "ramassage", "Recyclage": "recyclage", "Déchets spéciaux": "dechets_speciaux", "Urgence": "urgence" }
+        const priorityToDb: { [key: string]: string } = { "Basse": "low", "Normale": "medium", "Haute": "high", "Urgente": "urgent" }
+        const statusToDb: { [key: string]: string } = { "En attente": "pending", "En cours": "in_progress", "Terminé": "completed", "Annulé": "cancelled" }
+
+        setFormData({
+          title: request.title,
+          location: request.location,
+          description: request.description,
+          service_type: typeToDb[request.type] || "ramassage",
+          priority: priorityToDb[request.priority] || "medium",
+          status: statusToDb[request.status] || "pending",
+          special_instructions: request.specialInstructions || "",
+        })
+      } else {
+        // Reset for create mode
+        setFormData({
+          title: "",
+          location: "",
+          description: "",
+          service_type: "ramassage",
+          priority: "medium",
+          status: "pending",
+          special_instructions: "",
+        })
+      }
+    }
+  }, [isOpen, request, mode])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
-    // Simulate API call
-    setTimeout(() => {
-      onSave({
-        ...formData,
-        id: request?.id || `REQ-${String(Date.now()).slice(-3).padStart(3, "0")}`,
-        createdAt: request?.createdAt || new Date().toISOString(),
+    try {
+      const url = mode === "create" ? "/api/requests" : `/api/requests/${request?.id}`
+      const method = mode === "create" ? "POST" : "PUT"
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
       })
-      setIsLoading(false)
+
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.message || "Une erreur est survenue.")
+      }
+
+      onSave(result) // Notify parent to refetch data
       onClose()
-    }, 1000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleChange = (field: string, value: string) => {
@@ -83,35 +126,23 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="title">Titre de la demande</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => handleChange("title", e.target.value)}
-                className="bg-white/50 dark:bg-gray-800/50"
-                placeholder="Ex: Collecte de déchets industriels"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="client">Client</Label>
-              <Input
-                id="client"
-                value={formData.client}
-                onChange={(e) => handleChange("client", e.target.value)}
-                className="bg-white/50 dark:bg-gray-800/50"
-                placeholder="Nom du client"
-                required
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="title">Titre de la demande</Label>
+            <Input
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={(e) => handleChange("title", e.target.value)}
+              className="bg-white/50 dark:bg-gray-800/50"
+              placeholder="Ex: Collecte de déchets industriels"
+              required
+            />
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="location">Localisation</Label>
             <Input
               id="location"
+              name="location"
               value={formData.location}
               onChange={(e) => handleChange("location", e.target.value)}
               className="bg-white/50 dark:bg-gray-800/50"
@@ -120,57 +151,72 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
-              <Select value={formData.type} onValueChange={(value: string) => handleChange("type", value)}>
+              <Select
+                name="service_type"
+                value={formData.service_type}
+                onValueChange={(value: string) => handleChange("service_type", value)}
+              >
                 <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Collecte">Collecte</SelectItem>
-                  <SelectItem value="Recyclage">Recyclage</SelectItem>
-                  <SelectItem value="Déchets spéciaux">Déchets spéciaux</SelectItem>
-                  <SelectItem value="Urgence">Urgence</SelectItem>
+                  <SelectItem value="ramassage">Collecte</SelectItem>
+                  <SelectItem value="recyclage">Recyclage</SelectItem>
+                  <SelectItem value="dechets_speciaux">Déchets spéciaux</SelectItem>
+                  <SelectItem value="urgence">Urgence</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="priority">Priorité</Label>
-              <Select value={formData.priority} onValueChange={(value: string) => handleChange("priority", value)}>
+              <Select
+                name="priority"
+                value={formData.priority}
+                onValueChange={(value: string) => handleChange("priority", value)}
+              >
                 <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Basse">Basse</SelectItem>
-                  <SelectItem value="Normale">Normale</SelectItem>
-                  <SelectItem value="Haute">Haute</SelectItem>
-                  <SelectItem value="Urgente">Urgente</SelectItem>
+                  <SelectItem value="low">Basse</SelectItem>
+                  <SelectItem value="medium">Normale</SelectItem>
+                  <SelectItem value="high">Haute</SelectItem>
+                  <SelectItem value="urgent">Urgente</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {currentUserRole === "admin" && (
-              <div className="space-y-2">
-                <Label htmlFor="status">Statut</Label>
-                <Select value={formData.status} onValueChange={(value: string) => handleChange("status", value)}>
-                  <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="En attente">En attente</SelectItem>
-                    <SelectItem value="En cours">En cours</SelectItem>
-                    <SelectItem value="Terminé">Terminé</SelectItem>
-                    <SelectItem value="Annulé">Annulé</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
+
+          {currentUserRole === "admin" && (
+            <div className="space-y-2">
+              <Label htmlFor="status">Statut</Label>
+              <Select
+                name="status"
+                value={formData.status}
+                onValueChange={(value: string) => handleChange("status", value)}
+              >
+                <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">En attente</SelectItem>
+                  <SelectItem value="assigned">Assigné</SelectItem>
+                  <SelectItem value="in_progress">En cours</SelectItem>
+                  <SelectItem value="completed">Terminé</SelectItem>
+                  <SelectItem value="cancelled">Annulé</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="description">Description détaillée</Label>
             <Textarea
               id="description"
+              name="description"
               value={formData.description}
               onChange={(e) => handleChange("description", e.target.value)}
               className="bg-white/50 dark:bg-gray-800/50 min-h-[100px]"
@@ -179,67 +225,19 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="contactPhone">Téléphone de contact</Label>
-              <Input
-                id="contactPhone"
-                value={formData.contactPhone}
-                onChange={(e) => handleChange("contactPhone", e.target.value)}
-                className="bg-white/50 dark:bg-gray-800/50"
-                placeholder="+33 1 23 45 67 89"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="estimatedDuration">Durée estimée</Label>
-              <Select
-                value={formData.estimatedDuration}
-                onValueChange={(value: string) => handleChange("estimatedDuration", value)}
-              >
-                <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
-                  <SelectValue placeholder="Sélectionner" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="30min">30 minutes</SelectItem>
-                  <SelectItem value="1h">1 heure</SelectItem>
-                  <SelectItem value="2h">2 heures</SelectItem>
-                  <SelectItem value="4h">4 heures</SelectItem>
-                  <SelectItem value="1j">1 journée</SelectItem>
-                  <SelectItem value="2j">2 journées</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {currentUserRole === "admin" && (
-            <div className="space-y-2">
-              <Label htmlFor="assignedTo">Assigner à</Label>
-              <Select value={formData.assignedTo} onValueChange={(value: string) => handleChange("assignedTo", value)}>
-                <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
-                  <SelectValue placeholder="Sélectionner un membre du personnel" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Non assigné">Non assigné</SelectItem>
-                  {staffMembers.map((staff) => (
-                    <SelectItem key={staff} value={staff}>
-                      {staff}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
           <div className="space-y-2">
             <Label htmlFor="specialInstructions">Instructions spéciales</Label>
             <Textarea
               id="specialInstructions"
-              value={formData.specialInstructions}
-              onChange={(e) => handleChange("specialInstructions", e.target.value)}
+              name="special_instructions"
+              value={formData.special_instructions}
+              onChange={(e) => handleChange("special_instructions", e.target.value)}
               className="bg-white/50 dark:bg-gray-800/50"
               placeholder="Consignes particulières, équipements nécessaires, contraintes d'horaires..."
             />
           </div>
+
+          {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
 
           <DialogFooter className="flex gap-2 pt-4">
             <Button

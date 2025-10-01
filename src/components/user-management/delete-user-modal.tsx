@@ -20,19 +20,43 @@ interface DeleteUserModalProps {
   user: User | null
 }
 
+import { useEffect } from "react"
+
 export function DeleteUserModal({ isOpen, onClose, onConfirm, user }: DeleteUserModalProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Reset state on open
+  useEffect(() => {
+    if (isOpen) {
+      setError(null)
+    }
+  }, [isOpen])
 
   const handleConfirm = async () => {
     if (!user) return
 
     setIsLoading(true)
-    // Simulate API call
-    setTimeout(() => {
-      onConfirm(user.id)
-      setIsLoading(false)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: "DELETE",
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || "Une erreur est survenue lors de la suppression.")
+      }
+
+      onConfirm(user.id) // Notify parent to update UI
       onClose()
-    }, 1000)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (!user) return null
@@ -95,6 +119,8 @@ export function DeleteUserModal({ isOpen, onClose, onConfirm, user }: DeleteUser
               <li>Les permissions et accès</li>
             </ul>
           </div>
+
+          {error && <p className="mt-4 text-center text-sm text-red-600 dark:text-red-400">{error}</p>}
         </div>
 
         <DialogFooter className="flex gap-2">

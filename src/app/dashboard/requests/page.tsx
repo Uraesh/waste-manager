@@ -117,11 +117,68 @@ export default function RequestsPage() {
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
   const router = useRouter()
 
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Data mapping from DB values to frontend display values
+  const statusMapping: { [key: string]: Request["status"] } = {
+    pending: "En attente",
+    assigned: "En cours",
+    in_progress: "En cours",
+    completed: "Terminé",
+    cancelled: "Annulé",
+  }
+
+  const priorityMapping: { [key: string]: Request["priority"] } = {
+    low: "Basse",
+    medium: "Normale",
+    high: "Haute",
+    urgent: "Urgente",
+  }
+
+  const typeMapping: { [key: string]: Request["type"] } = {
+    ramassage: "Collecte",
+    recyclage: "Recyclage",
+    dechets_speciaux: "Déchets spéciaux",
+    urgence: "Urgence",
+  }
+
+  const fetchRequests = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const response = await fetch("/api/requests")
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.message || "Impossible de charger les demandes.")
+      }
+
+      const formattedRequests = data.map((mission: any) => ({
+        id: mission.id,
+        title: mission.title,
+        client: mission.client?.company_name || "N/A",
+        location: mission.location,
+        type: typeMapping[mission.service_type] || mission.service_type,
+        status: statusMapping[mission.status] || mission.status,
+        priority: priorityMapping[mission.priority] || mission.priority,
+        createdAt: mission.created_at,
+        assignedTo: mission.staff ? `${mission.staff.first_name} ${mission.staff.last_name}` : undefined,
+        description: mission.description,
+        estimatedDuration: mission.estimated_duration ? `${mission.estimated_duration}h` : undefined,
+        specialInstructions: mission.special_instructions,
+      }))
+      setRequests(formattedRequests)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   useEffect(() => {
-    // Check authentication
     const isAuthenticated = localStorage.getItem("isAuthenticated")
     if (!isAuthenticated) {
-      router.push("/login") // Redirect to login if not authenticated
+      router.push("/login")
       return
     }
 
@@ -131,71 +188,7 @@ export default function RequestsPage() {
       role: userRole as CurrentUser["role"],
     })
 
-    // Mock requests data with more detailed information
-    setRequests([
-      {
-        id: "REQ-001",
-        title: "Collecte de déchets industriels",
-        client: "Marie Dubois",
-        location: "15 Rue de la Paix, 75001 Paris",
-        type: "Collecte",
-        status: "En attente",
-        priority: "Haute",
-        createdAt: "2024-01-15T10:30:00",
-        description:
-          "Collecte urgente de déchets industriels non dangereux. Environ 2 tonnes de matériaux divers incluant du métal, du plastique et du carton.",
-        estimatedDuration: "2h",
-        contactPhone: "+33 1 23 45 67 89",
-        specialInstructions: "Accès par la cour arrière. Prévoir un camion de taille moyenne.",
-      },
-      {
-        id: "REQ-002",
-        title: "Recyclage papier bureau",
-        client: "Entreprise ABC",
-        location: "Zone industrielle Nord, 93200 Saint-Denis",
-        type: "Recyclage",
-        status: "En cours",
-        priority: "Normale",
-        createdAt: "2024-01-14T14:20:00",
-        assignedTo: "Jean Dupont",
-        description:
-          "Collecte hebdomadaire de papier de bureau. Environ 500kg de documents à détruire de manière sécurisée.",
-        estimatedDuration: "1h",
-        contactPhone: "+33 1 98 76 54 32",
-      },
-      {
-        id: "REQ-003",
-        title: "Déchets médicaux DASRI",
-        client: "Hôpital Saint-Louis",
-        location: "1 Avenue Claude Vellefaux, 75010 Paris",
-        type: "Déchets spéciaux",
-        status: "Terminé",
-        priority: "Urgente",
-        createdAt: "2024-01-13T08:15:00",
-        assignedTo: "Pierre Martin",
-        description:
-          "Collecte de déchets médicaux selon protocole DASRI. Contenants spécialisés fournis par l'hôpital.",
-        estimatedDuration: "1h",
-        contactPhone: "+33 1 42 49 49 49",
-        specialInstructions: "Respecter strictement le protocole DASRI. Équipements de protection obligatoires.",
-      },
-      {
-        id: "REQ-004",
-        title: "Urgence - Déversement accidentel",
-        client: "Garage Moderne",
-        location: "45 Boulevard de la République, 92100 Boulogne",
-        type: "Urgence",
-        status: "En cours",
-        priority: "Urgente",
-        createdAt: "2024-01-16T16:45:00",
-        assignedTo: "Sophie Laurent",
-        description:
-          "Déversement accidentel d'huile moteur dans la cour. Intervention urgente requise pour éviter la contamination.",
-        estimatedDuration: "4h",
-        contactPhone: "+33 1 55 66 77 88",
-        specialInstructions: "Matériel absorbant nécessaire. Intervention dans les 2h maximum.",
-      },
-    ])
+    fetchRequests()
   }, [router])
 
   const FilterSelect = ({ value, onValueChange, options, placeholder }: {
@@ -249,11 +242,27 @@ export default function RequestsPage() {
     setIsDetailsModalOpen(true)
   }
 
-  const handleSaveRequest = (requestData: Partial<Request>) => {
-    if (modalMode === "create") {
-      setRequests((prev) => [requestData as Request, ...prev])
-    } else {
-      setRequests((prev) => prev.map((req) => (req.id === requestData.id ? { ...req, ...requestData } : req)))
+  const handleSaveRequest = () => {
+    // After a request is saved (created or edited), we just refetch the list
+    // to ensure the UI is up-to-date with the latest data from the server.
+    fetchRequests()
+  }
+
+  const handleDeleteRequest = async (requestId: string) => {
+    // NOTE: In a real app, a confirmation modal is highly recommended here.
+    try {
+      const response = await fetch(`/api/requests/${requestId}`, {
+        method: "DELETE",
+      })
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || "Erreur lors de la suppression.")
+      }
+      // Refetch requests to update the list
+      fetchRequests()
+    } catch (err: any) {
+      // In a real app, you'd show a toast notification here
+      setError(err.message)
     }
   }
 
@@ -319,10 +328,26 @@ export default function RequestsPage() {
       }
     })
 
-  if (!currentUser) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-rose-50 to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="ml-4 text-gray-600 dark:text-gray-300">Chargement des demandes...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-rose-50 to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Card className="p-8 text-center bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-red-200 dark:border-red-800 shadow-2xl">
+          <div className="text-5xl mb-4">🚨</div>
+          <h2 className="text-2xl font-bold text-red-700 dark:text-red-400 mb-2">Erreur de chargement</h2>
+          <p className="text-red-600 dark:text-red-300 font-medium">{error}</p>
+          <Button onClick={fetchRequests} className="mt-6 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700">
+            Réessayer
+          </Button>
+        </Card>
       </div>
     )
   }
@@ -479,6 +504,17 @@ export default function RequestsPage() {
                         }}
                       >
                         Modifier
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 bg-transparent"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteRequest(request.id)
+                        }}
+                      >
+                        Supprimer
                       </Button>
                       {request.status === "En attente" && (
                         <Button
