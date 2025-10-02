@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 
@@ -32,12 +32,6 @@ async function checkAccess(supabase: any, staffId: string) {
       ),
     }
   }
-
-  // For delete, only admin is allowed
-  if (request.method === 'DELETE' && !is_admin) {
-      return { error: NextResponse.json({ message: "Seuls les administrateurs peuvent supprimer un membre du personnel." }, { status: 403 }) }
-  }
-
 
   return { session, is_admin }
 }

@@ -1,8 +1,7 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import type React from "react"
-
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -94,7 +93,7 @@ export function UserModal({ isOpen, onClose, onSave, user, mode }: UserModalProp
 
       // The API returns the full user object from Supabase Auth, which is nested.
       // We format it to match the frontend's `User` interface before passing it to the parent.
-      const formattedUser = {
+      const formattedUser: Partial<User> = {
         id: result.user.id,
         name: result.user.user_metadata.full_name,
         email: result.user.email,
