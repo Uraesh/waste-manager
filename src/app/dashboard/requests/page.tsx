@@ -328,11 +328,11 @@ export default function RequestsPage() {
       }
     })
 
-  if (isLoading) {
+  if (isLoading || !currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-rose-50 to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="ml-4 text-gray-600 dark:text-gray-300">Chargement des demandes...</p>
+        <p className="ml-4 text-gray-600 dark:text-gray-300">Chargement...</p>
       </div>
     )
   }
