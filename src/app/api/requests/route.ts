@@ -5,7 +5,7 @@ import { cookies } from "next/headers"
 // GET handler to fetch missions based on user role
 export async function GET() {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
 
   try {
     const { data: { session } } = await supabase.auth.getSession()
@@ -69,7 +69,7 @@ export async function GET() {
 // POST handler to create a new mission
 export async function POST(request: Request) {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
 
   try {
     const { data: { session } } = await supabase.auth.getSession()
@@ -116,16 +116,19 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "Action non autorisée." }, { status: 403 });
     }
 
-    const { error } = await supabase.from("missions").insert({
-      title: body.title,
-      description: body.description,
-      client_id: clientId,
-      location: body.location,
-      service_type: body.service_type,
-      priority: body.priority || 'medium',
-      status: 'pending', // Always starts as pending
-      special_instructions: body.special_instructions
-    })
+    const { data: mission, error } = await supabase.from("missions")
+      .insert({
+        title: body.title,
+        description: body.description,
+        client_id: clientId,
+        location: body.location,
+        service_type: body.service_type,
+        priority: body.priority || 'medium',
+        status: 'pending', // Always starts as pending
+        special_instructions: body.special_instructions
+      })
+      .select()
+      .single()
 
     if (error) {
       console.error("Error creating mission:", error)

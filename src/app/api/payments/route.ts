@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse, type NextRequest } from "next/server"
 import { cookies } from "next/headers"
+import { SupabaseClient } from "@supabase/supabase-js"
 
 // Helper function to get user and profile
-async function getUserAndProfile(supabase: any) {
+async function getUserAndProfile(supabase: SupabaseClient) {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession()
   if (sessionError || !session) {
     return { error: NextResponse.json({ message: "Non authentifié" }, { status: 401 }) }
@@ -25,7 +26,7 @@ async function getUserAndProfile(supabase: any) {
 // GET - Fetches payments with role-based access control
 export async function GET(request: NextRequest) {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
 
   try {
     const { userProfile, error: authError } = await getUserAndProfile(supabase)
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest) {
 // POST - Creates a new payment
 export async function POST(request: NextRequest) {
     const cookieStore = cookies()
-    const supabase = createServerClient(cookieStore)
+    const supabase = createClient(await cookieStore)
 
     try {
         const { userProfile, error: authError } = await getUserAndProfile(supabase);

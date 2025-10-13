@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { SupabaseClient } from "@supabase/supabase-js"
 
 // Helper function to check for admin privileges
-async function checkAdmin(supabase: any) {
+async function checkAdmin(supabase: SupabaseClient) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) {
     return { error: NextResponse.json({ message: "Non authentifié" }, { status: 401 }) }
@@ -29,72 +30,68 @@ async function checkAdmin(supabase: any) {
 // PUT handler for updating a specific payment
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
   const paymentId = params.id
 
   try {
     const { error: adminError } = await checkAdmin(supabase)
     if (adminError) return adminError
 
-    const { payment_status, ...updateData } = await request.json()
+    const body = await request.json()
 
-    if (payment_status === "completed" && !updateData.paid_at) {
-      updateData.paid_at = new Date().toISOString()
+    // Check if payment exists
+    const { data: existingPayment, error: paymentError } = await supabase
+      .from("payments")
+      .select("*")
+      .eq("id", paymentId)
+      .single()
+
+    if (paymentError || !existingPayment) {
+      return NextResponse.json({ message: "Paiement introuvable." }, { status: 404 })
     }
 
-    const { data, error } = await supabase
+    // Update payment
+    const { data: payment, error: updateError } = await supabase
       .from("payments")
-      .update({ payment_status, ...updateData, updated_at: new Date().toISOString() })
+      .update(body)
       .eq("id", paymentId)
       .select()
       .single()
 
-    if (error) {
-      console.error("Erreur lors de la mise à jour du paiement:", error)
-      return NextResponse.json({ message: "Échec de la mise à jour du paiement", details: error.message }, { status: 500 })
+    if (updateError) {
+      return NextResponse.json({ message: "Erreur lors de la mise à jour du paiement." }, { status: 500 })
     }
 
-    return NextResponse.json(data)
+    return NextResponse.json({ payment })
   } catch (error) {
-    console.error(`Erreur inattendue dans PUT /api/payments/${paymentId}:`, error)
-    return NextResponse.json({ message: "Erreur serveur interne" }, { status: 500 })
+    console.error("Error in PUT /api/payments/[id]:", error)
+    return NextResponse.json({ message: "Une erreur inattendue est survenue." }, { status: 500 })
   }
 }
 
 // DELETE handler for deleting a specific payment
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
   const paymentId = params.id
 
   try {
     const { error: adminError } = await checkAdmin(supabase)
     if (adminError) return adminError
 
-    const { data: existingPayment, error: fetchError } = await supabase
+    // Delete payment
+    const { error: deleteError } = await supabase
       .from("payments")
-      .select("payment_status")
+      .delete()
       .eq("id", paymentId)
-      .single()
 
-    if (fetchError || !existingPayment) {
-      return NextResponse.json({ message: "Paiement non trouvé" }, { status: 404 })
-    }
-
-    if (existingPayment.payment_status === "completed") {
-      return NextResponse.json({ message: "Impossible de supprimer un paiement complété" }, { status: 400 })
-    }
-
-    const { error } = await supabase.from("payments").delete().eq("id", paymentId)
-
-    if (error) {
-      console.error("Erreur lors de la suppression du paiement:", error)
-      return NextResponse.json({ message: "Échec de la suppression du paiement", details: error.message }, { status: 500 })
+    if (deleteError) {
+      return NextResponse.json({ message: "Erreur lors de la suppression du paiement." }, { status: 500 })
     }
 
     return NextResponse.json({ message: "Paiement supprimé avec succès." })
   } catch (error) {
-    console.error(`Erreur inattendue dans DELETE /api/payments/${paymentId}:`, error)
-    return NextResponse.json({ message: "Erreur serveur interne" }, { status: 500 })
+    console.error("Error in DELETE /api/payments/[id]:", error)
+    return NextResponse.json({ message: "Une erreur inattendue est survenue." }, { status: 500 })
   }
 }

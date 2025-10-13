@@ -15,6 +15,8 @@ interface Payment {
   amount: number;
   currency: string;
   payment_status: 'pending' | 'completed' | 'failed' | 'refunded';
+  payment_method: 'stripe' | 'paypal' | 'bank_transfer' | 'cash';
+  mission_id: string;
   due_date?: string;
   created_at: string;
   mission: { title: string };
@@ -40,8 +42,12 @@ export default function PaymentsPage() {
         throw new Error(data.message || "Impossible de charger les paiements.")
       }
       setPayments(data.payments)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError("Une erreur inconnue est survenue.")
+      }
     } finally {
       setIsLoading(false)
     }

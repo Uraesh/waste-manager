@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { SupabaseClient } from "@supabase/supabase-js"
 
 // Helper function to check user's role and get their profile
-async function getUserAndProfile(supabase: any) {
+async function getUserAndProfile(supabase: SupabaseClient) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) {
     return { error: NextResponse.json({ message: "Non authentifié" }, { status: 401 }) }
@@ -25,7 +26,7 @@ async function getUserAndProfile(supabase: any) {
 // PUT handler for updating a specific mission
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
   const missionId = params.id
 
   try {
@@ -53,7 +54,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     // Fields that can be updated
     const { title, description, location, priority, status, assigned_staff_id, special_instructions } = body
 
-    const { error: updateError } = await supabase
+    const { data: updatedMission, error: updateError } = await supabase
       .from("missions")
       .update({
         title,
@@ -63,17 +64,18 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         status,
         assigned_staff_id,
         special_instructions,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq("id", missionId)
+      .select()
+      .single()
 
     if (updateError) {
       console.error("Error updating mission:", updateError)
       return NextResponse.json({ message: "Erreur lors de la mise à jour de la mission." }, { status: 500 })
     }
 
-    return NextResponse.json({ message: "Mission mise à jour avec succès." })
-
+    return NextResponse.json({ mission: updatedMission })
   } catch (error) {
     console.error("An unexpected error occurred in PUT /api/requests/[id]:", error)
     return NextResponse.json({ message: "Une erreur inattendue est survenue." }, { status: 500 })
@@ -83,16 +85,16 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 // DELETE handler for deleting a specific mission
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
   const missionId = params.id
 
   try {
     const { userProfile, error: authError } = await getUserAndProfile(supabase)
     if (authError) return authError
 
-    // Authorization: Only admins can delete missions
+    // Only admins can delete missions
     if (userProfile.role !== 'admin') {
-      return NextResponse.json({ message: "Action non autorisée. Seuls les administrateurs peuvent supprimer une mission." }, { status: 403 })
+      return NextResponse.json({ message: "Action non autorisée." }, { status: 403 })
     }
 
     const { error: deleteError } = await supabase
@@ -106,7 +108,6 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     }
 
     return NextResponse.json({ message: "Mission supprimée avec succès." })
-
   } catch (error) {
     console.error("An unexpected error occurred in DELETE /api/requests/[id]:", error)
     return NextResponse.json({ message: "Une erreur inattendue est survenue." }, { status: 500 })

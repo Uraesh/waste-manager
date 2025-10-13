@@ -360,14 +360,17 @@ export async function POST(request: NextRequest) {
       .select(`
         *,
         client:clients (
+          id,
           company_name,
           contact_person,
           user:users (
+            id,
             full_name,
             email
           )
         ),
         assigned_staff:staff_profiles (
+          id,
           first_name,
           last_name,
           position
@@ -536,10 +539,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Suppression de la mission
-    const { error } = await supabase
+    const { data: deletedMission, error } = await supabase
       .from("missions")
       .delete()
       .eq("id", id)
+      .select()
+      .single()
 
     if (error) {
       console.error("Erreur lors de la suppression de la mission:", error)
@@ -550,7 +555,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     return NextResponse.json({ 
-      message: "Mission supprimée avec succès"
+      message: "Mission supprimée avec succès",
+      deletedMission
     })
 
   } catch (error) {

@@ -4,7 +4,7 @@ import { cookies } from "next/headers"
 
 export async function GET() {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
 
   try {
     // 1. Get the current user's session to identify who is making the request.
@@ -60,7 +60,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
 
   try {
     const {

@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { SupabaseClient } from "@supabase/supabase-js"
 
 // Helper function to check for admin privileges
-async function checkAdmin(supabase: any) {
+async function checkAdmin(supabase: SupabaseClient) {
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -31,7 +32,7 @@ async function checkAdmin(supabase: any) {
 // GET handler to fetch all staff profiles
 export async function GET() {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
   try {
     const { error: adminError } = await checkAdmin(supabase)
     if (adminError) return adminError
@@ -55,7 +56,7 @@ export async function GET() {
 // POST handler to create a new staff profile
 export async function POST(request: Request) {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
   try {
     const { error: adminError } = await checkAdmin(supabase)
     if (adminError) return adminError
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
     const { data: profileData, error: profileError } = await supabase
       .from("staff_profiles")
       .insert({
-        id: newUserId,
+        user_id: newUserId,
         first_name,
         last_name,
         position,

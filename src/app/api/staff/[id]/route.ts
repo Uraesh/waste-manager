@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { SupabaseClient } from "@supabase/supabase-js"
 
 // Helper function to check for admin privileges or self-access
-async function checkAccess(supabase: any, staffId: string) {
+async function checkAccess(supabase: SupabaseClient, staffId: string) {
   const {
     data: { session },
   } = await supabase.auth.getSession()
@@ -36,50 +37,44 @@ async function checkAccess(supabase: any, staffId: string) {
   return { session, is_admin }
 }
 
-// PUT handler for updating a specific staff profile
+// PUT handler for updating a specific staff member
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
   const staffId = params.id
 
   try {
     const { error: accessError } = await checkAccess(supabase, staffId)
     if (accessError) return accessError
 
-    const { first_name, last_name, position, phone, address, status } = await request.json()
+    const body = await request.json()
 
-    // Update the staff_profiles table
-    const { data, error } = await supabase
+    // Check if staff exists
+    const { data: existingStaff, error: staffError } = await supabase
       .from("staff_profiles")
-      .update({
-        first_name,
-        last_name,
-        position,
-        phone,
-        address,
-        status,
-        updated_at: new Date().toISOString()
-      })
+      .select("*")
+      .eq("id", staffId)
+      .single()
+
+    if (staffError || !existingStaff) {
+      return NextResponse.json({ message: "Membre du personnel introuvable." }, { status: 404 })
+    }
+
+    // Update staff profile
+    const { data: staff, error: updateError } = await supabase
+      .from("staff_profiles")
+      .update(body)
       .eq("id", staffId)
       .select()
       .single()
 
-    if (error) {
-      console.error("Error updating staff profile:", error)
+    if (updateError) {
       return NextResponse.json({ message: "Erreur lors de la mise à jour du profil." }, { status: 500 })
     }
 
-    // Also update the full_name in the corresponding auth.users metadata and public.users table
-    const fullName = `${first_name || ''} ${last_name || ''}`.trim()
-    await supabase.auth.admin.updateUserById(staffId, {
-        user_metadata: { full_name: fullName }
-    })
-    await supabase.from("users").update({ full_name: fullName }).eq("id", staffId)
-
-
-    return NextResponse.json(data)
+    return NextResponse.json({ staff })
   } catch (error) {
-    console.error(`An unexpected error occurred in PUT /api/staff/${staffId}:`, error)
+    console.error("Error in PUT /api/staff/[id]:", error)
     return NextResponse.json({ message: "Une erreur inattendue est survenue." }, { status: 500 })
   }
 }
@@ -87,29 +82,31 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 // DELETE handler for deleting a specific staff member
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   const cookieStore = cookies()
-  const supabase = createServerClient(cookieStore)
+  const supabase = createClient(await cookieStore)
   const staffId = params.id
 
   try {
     const { error: accessError, is_admin } = await checkAccess(supabase, staffId)
     if (accessError) return accessError
 
+    // Only admins can delete staff profiles
     if (!is_admin) {
-        return NextResponse.json({ message: "Action non autorisée. Seuls les administrateurs peuvent supprimer un membre du personnel." }, { status: 403 })
+      return NextResponse.json({ message: "Seuls les administrateurs peuvent supprimer des profils." }, { status: 403 })
     }
 
-    // The deletion from public.users and staff_profiles should cascade from auth.users.
-    // If not, you must delete from them manually before deleting the auth user.
-    const { error: deleteError } = await supabase.auth.admin.deleteUser(staffId)
+    // Delete staff profile
+    const { error: deleteError } = await supabase
+      .from("staff_profiles")
+      .delete()
+      .eq("id", staffId)
 
     if (deleteError) {
-      console.error("Error deleting staff user:", deleteError)
-      return NextResponse.json({ message: "Erreur lors de la suppression de l'utilisateur." }, { status: 500 })
+      return NextResponse.json({ message: "Erreur lors de la suppression du profil." }, { status: 500 })
     }
 
-    return NextResponse.json({ message: "Membre du personnel supprimé avec succès." })
+    return NextResponse.json({ message: "Profil supprimé avec succès." })
   } catch (error) {
-    console.error(`An unexpected error occurred in DELETE /api/staff/${staffId}:`, error)
+    console.error("Error in DELETE /api/staff/[id]:", error)
     return NextResponse.json({ message: "Une erreur inattendue est survenue." }, { status: 500 })
   }
 }
