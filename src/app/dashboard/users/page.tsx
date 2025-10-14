@@ -62,7 +62,15 @@ export default function UsersPage() {
         }
 
         // The API returns users with 'full_name' and 'created_at'. We map them to our component's 'User' interface.
-        const formattedUsers = data.map((user: any) => ({
+        interface ApiUser {
+          id: string
+          full_name: string
+          email: string
+          role: "admin" | "client" | "staff"
+          created_at: string
+        }
+
+        const formattedUsers = data.map((user: ApiUser) => ({
           id: user.id,
           name: user.full_name,
           email: user.email,
@@ -72,8 +80,9 @@ export default function UsersPage() {
           lastActive: "N/A", // This info is not available from the API
         }))
         setUsers(formattedUsers)
-      } catch (err: any) {
-        setError(err.message)
+      } catch (err: Error | unknown) {
+        const errorMessage = err instanceof Error ? err.message : "Une erreur inconnue s'est produite"
+        setError(errorMessage)
       } finally {
         setIsLoading(false)
       }

@@ -27,8 +27,9 @@ export function DeleteStaffModal({ isOpen, onClose, onConfirm, staffMember }: De
     try {
       await onConfirm()
       onClose()
-    } catch (err: any) {
-      setError(err.message || "Une erreur est survenue.")
+    } catch (err: Error | unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Une erreur inconnue s'est produite"
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }

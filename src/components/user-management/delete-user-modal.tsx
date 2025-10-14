@@ -52,8 +52,8 @@ export function DeleteUserModal({ isOpen, onClose, onConfirm, user }: DeleteUser
 
       onConfirm(user.id) // Notify parent to update UI
       onClose()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: Error | unknown) {
+      setError(err instanceof Error ? err.message : "Une erreur inconnue est survenue.")
     } finally {
       setIsLoading(false)
     }

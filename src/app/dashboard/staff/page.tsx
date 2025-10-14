@@ -43,8 +43,9 @@ export default function StaffPage() {
         throw new Error(data.message || "Impossible de charger les données du personnel.")
       }
       setStaff(data)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: Error | unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Une erreur inconnue s'est produite"
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }

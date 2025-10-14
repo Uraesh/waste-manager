@@ -24,10 +24,11 @@ async function getUserAndProfile(supabase: SupabaseClient) {
 }
 
 // PUT handler for updating a specific mission
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { params } = await context;
   const cookieStore = cookies()
   const supabase = createClient(await cookieStore)
-  const missionId = params.id
+  const missionId = (await params).id
 
   try {
     const { userProfile, error: authError } = await getUserAndProfile(supabase)
@@ -83,10 +84,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // DELETE handler for deleting a specific mission
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { params } = await context;
   const cookieStore = cookies()
   const supabase = createClient(await cookieStore)
-  const missionId = params.id
+  const missionId = (await params).id
 
   try {
     const { userProfile, error: authError } = await getUserAndProfile(supabase)

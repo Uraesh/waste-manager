@@ -38,10 +38,11 @@ async function checkAccess(supabase: SupabaseClient, staffId: string) {
 }
 
 // PUT handler for updating a specific staff member
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { params } = await context;
   const cookieStore = cookies()
   const supabase = createClient(await cookieStore)
-  const staffId = params.id
+  const staffId = (await params).id
 
   try {
     const { error: accessError } = await checkAccess(supabase, staffId)
@@ -80,10 +81,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // DELETE handler for deleting a specific staff member
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { params } = await context;
   const cookieStore = cookies()
   const supabase = createClient(await cookieStore)
-  const staffId = params.id
+  const staffId = (await params).id
 
   try {
     const { error: accessError, is_admin } = await checkAccess(supabase, staffId)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { RoleBasedNavigation } from "@/components/navigation/role-nav"
 import { RequestModal } from "@/components/request-management/request-modal"
 import { RequestDetailsModal } from "@/components/request-management/request-details-modal"
+import type { ApiMission } from "@/types/api.types"
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // Mapping des couleurs par statut
@@ -143,7 +145,7 @@ export default function RequestsPage() {
     urgence: "Urgence",
   }
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
@@ -153,7 +155,7 @@ export default function RequestsPage() {
         throw new Error(data.message || "Impossible de charger les demandes.")
       }
 
-      const formattedRequests = data.map((mission: any) => ({
+      const formattedRequests = data.map((mission: ApiMission) => ({
         id: mission.id,
         title: mission.title,
         client: mission.client?.company_name || "N/A",
@@ -168,12 +170,13 @@ export default function RequestsPage() {
         specialInstructions: mission.special_instructions,
       }))
       setRequests(formattedRequests)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: Error | unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Une erreur inconnue s'est produite"
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     const isAuthenticated = localStorage.getItem("isAuthenticated")
@@ -189,7 +192,7 @@ export default function RequestsPage() {
     })
 
     fetchRequests()
-  }, [router])
+  }, [router, fetchRequests])
 
   const FilterSelect = ({ value, onValueChange, options, placeholder }: {
     value: string
@@ -260,9 +263,10 @@ export default function RequestsPage() {
       }
       // Refetch requests to update the list
       fetchRequests()
-    } catch (err: any) {
+    } catch (err: Error | unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Une erreur inconnue s'est produite"
       // In a real app, you'd show a toast notification here
-      setError(err.message)
+      setError(errorMessage)
     }
   }
 

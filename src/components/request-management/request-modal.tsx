@@ -9,6 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Database } from "@/types/supabase"
+
+type MissionInsert = Database['public']['Tables']['missions']['Insert']
+type MissionUpdate = Database['public']['Tables']['missions']['Update']
 
 interface Request {
   id: string
@@ -38,14 +42,15 @@ interface RequestModalProps {
 import { useEffect } from "react"
 
 export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUserRole }: RequestModalProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<MissionInsert>({
     title: "",
     location: "",
     description: "",
     service_type: "ramassage",
     priority: "medium",
     status: "pending",
-    special_instructions: "",
+    special_instructions: null,
+    client_id: "", // sera défini côté serveur
   })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,19 +59,20 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
     if (isOpen) {
       setError(null)
       if (mode === "edit" && request) {
-        // Map frontend display values back to DB values for editing
-        const typeToDb: { [key: string]: string } = { "Collecte": "ramassage", "Recyclage": "recyclage", "Déchets spéciaux": "dechets_speciaux", "Urgence": "urgence" }
-        const priorityToDb: { [key: string]: string } = { "Basse": "low", "Normale": "medium", "Haute": "high", "Urgente": "urgent" }
-        const statusToDb: { [key: string]: string } = { "En attente": "pending", "En cours": "in_progress", "Terminé": "completed", "Annulé": "cancelled" }
+        // Map frontend display values back to DB values for editing (French DB values)
+        const typeToDb: { [key: string]: "ramassage" | "recyclage" | "dechets_speciaux" | "urgence" } = { "Collecte": "ramassage", "Recyclage": "recyclage", "Déchets spéciaux": "dechets_speciaux", "Urgence": "urgence" }
+        const priorityToDb: { [key: string]: "low" | "medium" | "high" | "urgent" } = { "Basse": "low", "Normale": "medium", "Haute": "high", "Urgente": "urgent" }
+        const statusToDb: { [key: string]: "pending" | "assigned" | "in_progress" | "completed" | "cancelled" } = { "En attente": "pending", "Assigné": "assigned", "En cours": "in_progress", "Terminé": "completed", "Annulé": "cancelled" }
 
         setFormData({
           title: request.title,
           location: request.location,
           description: request.description,
-          service_type: typeToDb[request.type] || "ramassage",
+          service_type: typeToDb[request.type] || "collection",
           priority: priorityToDb[request.priority] || "medium",
           status: statusToDb[request.status] || "pending",
-          special_instructions: request.specialInstructions || "",
+          special_instructions: request.specialInstructions || null,
+          client_id: "", // Le client_id est géré côté serveur en mode édition
         })
       } else {
         // Reset for create mode
@@ -74,10 +80,11 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
           title: "",
           location: "",
           description: "",
-          service_type: "ramassage",
+          service_type: "collection",
           priority: "medium",
           status: "pending",
-          special_instructions: "",
+          special_instructions: null,
+          client_id: "", // sera défini côté serveur
         })
       }
     }
@@ -92,10 +99,23 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
       const url = mode === "create" ? "/api/requests" : `/api/requests/${request?.id}`
       const method = mode === "create" ? "POST" : "PUT"
 
+      // Convertir les données du formulaire au format attendu par Supabase
+      const missionData: MissionInsert | MissionUpdate = {
+        title: formData.title,
+        location: formData.location,
+        description: formData.description,
+        service_type: formData.service_type as "collection" | "recycling" | "disposal" | "consulting",
+        priority: formData.priority as "low" | "medium" | "high" | "urgent",
+        status: formData.status as "pending" | "in_progress" | "completed" | "cancelled",
+        special_instructions: formData.special_instructions || null,
+        // client_id est inclus uniquement en mode création, géré côté serveur en mode édition
+        ...(mode === "create" && { client_id: formData.client_id }),
+      }
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(missionData),
       })
 
       const result = await response.json()
@@ -105,15 +125,19 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
 
       onSave(result) // Notify parent to refetch data
       onClose()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: Error | unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Une erreur inconnue s'est produite"
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
+  const handleChange = (field: keyof MissionInsert, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value
+    }))
   }
 
   return (
@@ -163,7 +187,7 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ramassage">Collecte</SelectItem>
+                  <SelectItem value="ramassage">Ramassage</SelectItem>
                   <SelectItem value="recyclage">Recyclage</SelectItem>
                   <SelectItem value="dechets_speciaux">Déchets spéciaux</SelectItem>
                   <SelectItem value="urgence">Urgence</SelectItem>
@@ -174,7 +198,7 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
               <Label htmlFor="priority">Priorité</Label>
               <Select
                 name="priority"
-                value={formData.priority}
+                value={formData.priority || "medium"}
                 onValueChange={(value: string) => handleChange("priority", value)}
               >
                 <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
@@ -195,19 +219,19 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
               <Label htmlFor="status">Statut</Label>
               <Select
                 name="status"
-                value={formData.status}
+                value={formData.status || "pending"}
                 onValueChange={(value: string) => handleChange("status", value)}
               >
                 <SelectTrigger className="bg-white/50 dark:bg-gray-800/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pending">En attente</SelectItem>
-                  <SelectItem value="assigned">Assigné</SelectItem>
-                  <SelectItem value="in_progress">En cours</SelectItem>
-                  <SelectItem value="completed">Terminé</SelectItem>
-                  <SelectItem value="cancelled">Annulé</SelectItem>
-                </SelectContent>
+              <SelectItem value="pending">En attente</SelectItem>
+              <SelectItem value="assigned">Assigné</SelectItem>
+              <SelectItem value="in_progress">En cours</SelectItem>
+              <SelectItem value="completed">Terminé</SelectItem>
+              <SelectItem value="cancelled">Annulé</SelectItem>
+            </SelectContent>
               </Select>
             </div>
           )}
@@ -217,7 +241,7 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
             <Textarea
               id="description"
               name="description"
-              value={formData.description}
+              value={formData.description || ""}
               onChange={(e) => handleChange("description", e.target.value)}
               className="bg-white/50 dark:bg-gray-800/50 min-h-[100px]"
               placeholder="Décrivez en détail la nature des déchets, la quantité estimée, les contraintes d'accès..."
@@ -230,7 +254,7 @@ export function RequestModal({ isOpen, onClose, onSave, request, mode, currentUs
             <Textarea
               id="specialInstructions"
               name="special_instructions"
-              value={formData.special_instructions}
+              value={formData.special_instructions || ""}
               onChange={(e) => handleChange("special_instructions", e.target.value)}
               className="bg-white/50 dark:bg-gray-800/50"
               placeholder="Consignes particulières, équipements nécessaires, contraintes d'horaires..."

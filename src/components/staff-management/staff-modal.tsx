@@ -91,8 +91,9 @@ export function StaffModal({ isOpen, onClose, onSave, staffMember, mode }: Staff
 
       onSave()
       onClose()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: Error | unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Une erreur inconnue s'est produite"
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }

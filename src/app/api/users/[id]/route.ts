@@ -32,10 +32,11 @@ async function checkAdmin(supabase: SupabaseClient) {
 }
 
 // PUT handler for updating a specific user
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { params } = await context;
   const cookieStore = cookies()
   const supabase = createClient(await cookieStore)
-  const userId = params.id
+  const userId = (await params).id
 
   try {
     const { error: adminError } = await checkAdmin(supabase)
@@ -74,10 +75,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // DELETE handler for deleting a specific user
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  const { params } = await context;
   const cookieStore = cookies()
   const supabase = createClient(await cookieStore)
-  const userId = params.id
+  const userId = (await params).id
 
   try {
     const { error: adminError } = await checkAdmin(supabase)

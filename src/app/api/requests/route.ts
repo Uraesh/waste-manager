@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { MissionWithRelations } from "@/types/database.types"
 
 // GET handler to fetch missions based on user role
 export async function GET() {
@@ -58,7 +59,7 @@ export async function GET() {
       return NextResponse.json({ message: "Erreur lors de la récupération des missions." }, { status: 500 })
     }
 
-    return NextResponse.json(missions)
+    return NextResponse.json(missions as MissionWithRelations[])
 
   } catch (error) {
     console.error("An unexpected error occurred in GET /api/requests:", error)
