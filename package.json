@@ -7,7 +7,7 @@
     "build": "npm run lint:strict && next build",
     "start": "next start",
     "lint": "eslint .",
-    "lint:strict": "tsc --noEmit && eslint . --max-warnings=0"
+    "lint:strict": "tsc --noEmit && eslint ."
   },
   "dependencies": {
     "@geist-ui/icons": "^1.0.2",

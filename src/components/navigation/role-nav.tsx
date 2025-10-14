@@ -15,23 +15,27 @@ interface User {
 }
 
 export function RoleBasedNavigation() {
-  const [user, setUser] = useState<User | null>(null)
+  const [user] = useState<User | null>(() => {
+    if (typeof window === 'undefined') {
+      return null
+    }
+    const isAuthenticated = localStorage.getItem("isAuthenticated")
+    if (!isAuthenticated) {
+      return null
+    }
+    const userName = localStorage.getItem("userName") || "User"
+    const userRole = (localStorage.getItem("userRole") as UserRole) || "client"
+    return { name: userName, role: userRole }
+  })
   const router = useRouter()
   const pathname = usePathname()
   const { darkMode, toggleDarkMode } = useTheme()
 
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem("isAuthenticated")
-    if (!isAuthenticated) {
+    if (!user) {
       router.push("/")
-      return
     }
-
-    const userName = localStorage.getItem("userName") || "User"
-    const userRole = (localStorage.getItem("userRole") as UserRole) || "client"
-
-    setUser({ name: userName, role: userRole })
-  }, [router])
+  }, [user, router])
 
 
 
