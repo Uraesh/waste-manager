@@ -8,7 +8,11 @@ import type React from "react"
 import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
-import "@/styles/globals.css"
+/** @ts-ignore - allow side-effect global CSS import without type declarations
+ * Next.js currently does not support CSS module types natively
+ * See: https://nextjs.org/docs/basic-features/built-in-css-support#adding-global-styles
+ */
+import "../styles/globals.css"
 
 export const metadata: Metadata = {
   title: "WasteManager - Gestion des déchets",

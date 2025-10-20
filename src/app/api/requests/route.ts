@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { MissionWithRelations } from "@/types/database.types"
+import { MissionInsert } from '../../../types/database.types';
 
 // GET handler to fetch missions based on user role
 export async function GET() {
@@ -117,7 +118,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "Action non autorisée." }, { status: 403 });
     }
 
-    const { data: mission, error } = await supabase.from("missions")
+    const { data: MissionInsert, error } = await supabase.from("missions")
       .insert({
         title: body.title,
         description: body.description,

@@ -7,7 +7,8 @@
     "build": "npm run lint:strict && next build",
     "start": "next start",
     "lint": "eslint .",
-    "lint:strict": "tsc --noEmit && eslint ."
+    "lint:strict": "tsc --noEmit && eslint .",
+    "test": "vitest"
   },
   "dependencies": {
     "@geist-ui/icons": "^1.0.2",
@@ -20,7 +21,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.7.0",
-    "@supabase/supabase-js": "^2.58.0",
+    "@supabase/supabase-js": "^2.75.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "eslint-plugin-react-hooks": "^7.0.0-canary-d7215b49-20251013",
@@ -46,10 +47,15 @@
     "@types/react-dom": "^19",
     "@typescript-eslint/eslint-plugin": "^8.44.1",
     "@typescript-eslint/parser": "^8.44.1",
+    "@vitejs/plugin-react": "^5.0.4",
+    "@vitest/ui": "^3.2.4",
     "eslint": "^9.36.0",
     "eslint-config-next": "^15.5.4",
     "globals": "^16.4.0",
+    "jsdom": "^27.0.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.4"
   }
 }

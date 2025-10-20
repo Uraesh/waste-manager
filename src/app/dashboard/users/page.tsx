@@ -32,7 +32,7 @@ interface CurrentUser {
 }
 
 export default function UsersPage() {
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+  const [CurrentUser, setCurrentUser] = useState<CurrentUser | null>(null)
   const [users, setUsers] = useState<User[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [filterRole, setFilterRole] = useState<string>("all")

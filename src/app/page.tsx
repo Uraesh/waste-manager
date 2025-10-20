@@ -1,38 +1,50 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
+import Link from "next/link"
+import { createClient } from "@/lib/supabase/client"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [successMessage] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search)
+      if (urlParams.get('message') === 'email-verified') {
+        return "E-mail vérifié ! Vous pouvez maintenant vous connecter."
+      }
+    }
+    return null
+  })
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
-    // Simulate login - in real app, this would call an API
-    setTimeout(() => {
-      // Mock login logic - redirect based on email domain
-      if (email.includes("admin")) {
-        localStorage.setItem("userRole", "admin")
-        localStorage.setItem("userName", "Admin User")
-      } else if (email.includes("staff")) {
-        localStorage.setItem("userRole", "staff")
-        localStorage.setItem("userName", "Staff Member")
+    const supabase = createClient()
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    setIsLoading(false)
+
+    if (error) {
+      if (error.message === 'Email not confirmed') {
+        setError('Veuillez vérifier votre e-mail avant de vous connecter.')
       } else {
-        localStorage.setItem("userRole", "client")
-        localStorage.setItem("userName", "Client User")
+        setError('Email ou mot de passe invalide.')
       }
-      localStorage.setItem("isAuthenticated", "true")
-      window.location.href = "/dashboard"
-      setIsLoading(false)
-    }, 1500)
+    } else {
+      window.location.href = '/dashboard'
+    }
   }
 
   return (
@@ -51,6 +63,9 @@ export default function LoginPage() {
           </div>
           <p className="text-white/80">Connectez-vous à votre compte</p>
         </div>
+
+        {successMessage && <p className="text-green-400 text-center mb-4">{successMessage}</p>}
+        {error && <p className="text-red-400 text-center mb-4">{error}</p>}
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-4">
@@ -91,6 +106,15 @@ export default function LoginPage() {
             )}
           </Button>
         </form>
+
+        <div className="mt-6 text-center">
+          <p className="text-white/60 text-sm">
+            Vous n&apos;avez pas de compte?{' '}
+            <Link href="/signup" className="text-red-400 hover:underline">
+              Inscrivez-vous
+            </Link>
+          </p>
+        </div>
 
         <div className="mt-6 text-center">
           <p className="text-white/60 text-sm">Comptes de test:</p>
